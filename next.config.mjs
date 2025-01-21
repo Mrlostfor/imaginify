@@ -5,10 +5,17 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
-        port: ''
-      }
-    ]
-  }
-};
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
+  webpack: (config) => {
+    config.resolve.fallback = {
+      "punycode": false,
+    };
+    return config;
+  },
+}
 
 export default nextConfig;

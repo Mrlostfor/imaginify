@@ -15,18 +15,25 @@ if(!cached) {
   }
 }
 
+let isConnected = false;
+
 export const connectToDatabase = async () => {
-  if(cached.conn) return cached.conn;
+  mongoose.set('strictQuery', true);
 
-  if(!MONGODB_URL) throw new Error('Missing MONGODB_URL');
+  if (!process.env.MONGODB_URL) return console.log('MONGODB_URL not found');
+  if (isConnected) return console.log('Already connected to MongoDB');
 
-  cached.promise = 
-    cached.promise || 
-    mongoose.connect(MONGODB_URL, { 
-      dbName: 'imaginify', bufferCommands: false 
-    })
+  try {
+    await mongoose.connect(process.env.MONGODB_URL, {
+      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+      socketTimeoutMS: 30000, // Timeout after 30 seconds
+      maxPoolSize: 10, // Maximum number of connections
+      retryWrites: true,
+    });
 
-  cached.conn = await cached.promise;
-
-  return cached.conn;
-}
+    isConnected = true;
+    console.log('Connected to MongoDB');
+  } catch (error) {
+    console.log('Error connecting to MongoDB:', error);
+  }
+};
