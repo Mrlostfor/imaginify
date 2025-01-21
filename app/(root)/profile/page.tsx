@@ -14,20 +14,23 @@ const Profile = async ({ searchParams }: SearchParamProps) => {
   if (!userId) redirect("/sign-in");
 
   try {
-    const user = await getUserById(userId);
-    
-    if (!user) {
-      const clerkUser = await currentUser();
-      
-      if (!clerkUser) {
-        throw new Error("Clerk user not found");
-      }
+    // Get the Clerk user first to ensure we have their data
+    const clerkUser = await currentUser();
+    if (!clerkUser) {
+      throw new Error("Clerk user not found");
+    }
 
-      // Create new user
+    // Try to get the user from our database
+    let user = await getUserById(userId);
+    
+    // If user doesn't exist in our database, create them
+    if (!user) {
+      console.log("User not found in database, creating new user for:", userId);
+      
       const userInfo = {
         clerkId: userId,
         email: clerkUser.emailAddresses[0].emailAddress,
-        username: clerkUser.username || `user${Math.random().toString(36).substring(7)}`,
+        username: clerkUser.username || `user${Math.random().toString(36).slice(2, 7)}`,
         firstName: clerkUser.firstName || "",
         lastName: clerkUser.lastName || "",
         photo: clerkUser.imageUrl,
@@ -35,32 +38,16 @@ const Profile = async ({ searchParams }: SearchParamProps) => {
       };
 
       console.log("Creating new user with info:", userInfo);
-      const newUser = await createUser(userInfo);
-      console.log("New user created:", newUser);
-
-      if (!newUser) {
-        throw new Error("Failed to create new user");
+      
+      try {
+        user = await createUser(userInfo);
+        console.log("User created successfully:", user?._id);
+      } catch (createError) {
+        console.error("Error creating user:", createError);
+        throw new Error("Failed to create user account");
       }
-
-      return (
-        <div className="profile-container">
-          <h1>Welcome to Imaginify!</h1>
-          <p>Your account has been created successfully.</p>
-          <div className="user-info">
-            <Image 
-              src={newUser.photo}
-              alt="profile"
-              width={100}
-              height={100}
-              className="rounded-full"
-            />
-            <div>
-              <p>Username: {newUser.username}</p>
-              <p>Credits: {newUser.creditBalance}</p>
-            </div>
-          </div>
-        </div>
-      );
+      
+      if (!user) throw new Error("Failed to create user account");
     }
 
     // Get user's images
@@ -112,9 +99,11 @@ const Profile = async ({ searchParams }: SearchParamProps) => {
   } catch (error) {
     console.error("Profile page error:", error);
     return (
-      <div className="error-container">
-        <h1>Error</h1>
-        <p>Something went wrong. Please try again later.</p>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-2xl font-bold text-red-500">Something went wrong</h1>
+        <p className="text-gray-600">
+          {error instanceof Error ? error.message : "Please try again later"}
+        </p>
       </div>
     );
   }
