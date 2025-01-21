@@ -14,27 +14,56 @@ const Profile = async ({ searchParams }: SearchParamProps) => {
   if (!userId) redirect("/sign-in");
 
   try {
-    let user = await getUserById(userId);
+    const user = await getUserById(userId);
     
-    // If user doesn't exist, create a new one
     if (!user) {
       const clerkUser = await currentUser();
-      if (!clerkUser) throw new Error("Clerk user not found");
+      
+      if (!clerkUser) {
+        throw new Error("Clerk user not found");
+      }
 
+      // Create new user
       const userInfo = {
         clerkId: userId,
-        email: clerkUser.emailAddresses[0]?.emailAddress || "",
-        username: clerkUser.username || "",
+        email: clerkUser.emailAddresses[0].emailAddress,
+        username: clerkUser.username || `user${Math.random().toString(36).substring(7)}`,
         firstName: clerkUser.firstName || "",
         lastName: clerkUser.lastName || "",
-        photo: clerkUser.imageUrl || "",
+        photo: clerkUser.imageUrl,
+        creditBalance: 10
       };
-      
-      user = await createUser(userInfo);
-      
-      if (!user) throw new Error("Failed to create user");
+
+      console.log("Creating new user with info:", userInfo);
+      const newUser = await createUser(userInfo);
+      console.log("New user created:", newUser);
+
+      if (!newUser) {
+        throw new Error("Failed to create new user");
+      }
+
+      return (
+        <div className="profile-container">
+          <h1>Welcome to Imaginify!</h1>
+          <p>Your account has been created successfully.</p>
+          <div className="user-info">
+            <Image 
+              src={newUser.photo}
+              alt="profile"
+              width={100}
+              height={100}
+              className="rounded-full"
+            />
+            <div>
+              <p>Username: {newUser.username}</p>
+              <p>Credits: {newUser.creditBalance}</p>
+            </div>
+          </div>
+        </div>
+      );
     }
 
+    // Get user's images
     const images = await getUserImages({ page, userId: user._id });
 
     return (
@@ -81,11 +110,11 @@ const Profile = async ({ searchParams }: SearchParamProps) => {
       </>
     );
   } catch (error) {
-    console.error("Error in profile page:", error);
+    console.error("Profile page error:", error);
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-2xl font-bold text-red-500">Something went wrong</h1>
-        <p className="text-gray-600">Please try again later</p>
+      <div className="error-container">
+        <h1>Error</h1>
+        <p>Something went wrong. Please try again later.</p>
       </div>
     );
   }

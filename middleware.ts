@@ -3,27 +3,30 @@ import { NextResponse } from "next/server";
 
 export default authMiddleware({
   // Routes that can be accessed while signed out
-  publicRoutes: [
-    "/",
-    "/sign-in",
-    "/sign-up",
-    "/api/webhooks/clerk",
-    "/api/webhooks/stripe"
-  ],
-  ignoredRoutes: ["/api/webhooks/clerk", "/api/webhooks/stripe"],
+  publicRoutes: ["/", "/api/webhooks/clerk", "/api/webhooks/stripe"],
+  
   afterAuth(auth, req) {
-    // Handle authentication and redirects
-    if (!auth.userId && !auth.isPublicRoute) {
-      return NextResponse.redirect(new URL('/sign-in', req.url));
-    }
+    // Get the current path from the URL
+    const url = new URL(req.url);
+    const path = url.pathname;
 
-    // If user is signed in and tries to access auth pages, redirect them to home
-    if (auth.userId && (req.url.includes('/sign-in') || req.url.includes('/sign-up'))) {
-      return NextResponse.redirect(new URL('/', req.url));
+    // Handle authentication paths
+    const isAuthPath = path.startsWith("/sign-in") || path.startsWith("/sign-up");
+    
+    // If the user is signed in and trying to access auth pages, redirect to home
+    if (auth.userId && isAuthPath) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    
+    // If the user is not signed in and trying to access a protected route
+    if (!auth.userId && !isAuthPath && !path.startsWith("/api")) {
+      const redirectUrl = new URL("/sign-in", req.url);
+      redirectUrl.searchParams.set("redirect_url", path);
+      return NextResponse.redirect(redirectUrl);
     }
 
     return NextResponse.next();
-  }
+  },
 });
 
 export const config = {
